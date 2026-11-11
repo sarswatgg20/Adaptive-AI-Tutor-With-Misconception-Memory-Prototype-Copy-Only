@@ -1,0 +1,636 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PixelTutor — Gamified AI Tutor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --px-magenta:#f0c; --px-cyan:#0fe; --px-yellow:#ffe94a; --px-green:#4aff91;
+    --px-orange:#ff8c1a; --px-red:#f35; --px-hotpink:#ff4fa3;
+    --px-dark:#1a0a2e; --px-bg:#3d1f6e; --px-bg2:#2a1050; --px-purple:#5b3a8e;
+    --px-white:#f0e8ff;
+    --card-shadow:6px 6px 0 #000; --card-border:4px solid #000; --card-shadow-sm:3px 3px 0 #000;
+  }
+  *,:before,:after{ box-sizing:border-box; }
+  html,body,#root{ color:var(--px-white); background:var(--px-bg2); min-height:100vh; margin:0; padding:0; font-family:Inter,sans-serif; overflow-x:hidden; }
+  .font-pixel{ font-family:"Press Start 2P",cursive !important; }
+  .font-body{ font-family:Inter,sans-serif !important; }
+  button{ font-family:inherit; }
+
+  .pixel-border{ border:var(--card-border); box-shadow:var(--card-shadow); }
+  .pixel-btn{
+    cursor:pointer; -webkit-user-select:none; user-select:none;
+    border:3px solid #000; font-size:.8rem; padding:12px 20px; border-radius:4px;
+    box-shadow:var(--card-shadow-sm); transition:transform 80ms, box-shadow 80ms;
+  }
+  .pixel-btn:active{ transform:translate(3px,3px); box-shadow:0 0 #000; }
+  .pixel-btn:disabled{ opacity:.45; cursor:not-allowed; }
+  .pixel-card{ border:var(--card-border); box-shadow:var(--card-shadow); background:var(--px-bg); padding:18px; border-radius:2px; }
+
+  .hp-bar-track{ background:#1f2937; border:2px solid #000; height:16px; position:relative; overflow:hidden; border-radius:2px; }
+  .hp-bar-fill{ height:100%; background:linear-gradient(90deg,var(--px-green),var(--px-yellow)); width:var(--fill,0%); transition:width 1s ease-out; }
+
+  .game-screen{ min-height:100vh; display:none; flex-direction:column; align-items:center; padding:90px 16px 60px; position:relative; overflow:hidden; }
+  .game-screen.active{ display:flex; }
+  .scanlines{ position:relative; }
+  .scanlines::after{
+    content:""; position:absolute; inset:0; pointer-events:none; z-index:10;
+    background:repeating-linear-gradient(#0000 0 2px, #00000014 2px 4px);
+  }
+
+  @keyframes float{ 0%,to{ transform:translateY(0);} 50%{ transform:translateY(-10px);} }
+  @keyframes bounce2{ 0%,to{ transform:translateY(0);} 50%{ transform:translateY(-6px);} }
+  @keyframes wiggle{ 0%,to{ transform:rotate(-3deg);} 50%{ transform:rotate(3deg);} }
+  @keyframes blink{ 0%,49%{ opacity:1;} 50%,to{ opacity:0;} }
+  @keyframes slideUp{ 0%{ opacity:0; transform:translateY(20px);} to{ opacity:1; transform:translateY(0);} }
+  @keyframes confetti{ 0%{ transform:translateY(0) rotate(0);} to{ transform:translateY(120px) rotate(360deg);} }
+  .animate-float{ animation:float 3s ease-in-out infinite; }
+  .animate-bounce2{ animation:bounce2 .8s ease-in-out infinite; }
+  .animate-wiggle{ animation:wiggle .5s ease-in-out infinite; }
+  .slide-up{ animation:slideUp .4s ease-out forwards; }
+
+  .mascot{ font-size:5rem; filter:drop-shadow(3px 3px 0 #000); }
+  .mascot.sm{ font-size:2.5rem; }
+
+  .hud{ position:fixed; top:0; left:0; right:0; z-index:50; display:flex; align-items:center; gap:16px;
+        background:var(--px-dark); border-bottom:4px solid #000; padding:10px 18px; font-size:.7rem; }
+  .hud .spacer{ flex:1; }
+  .hud .hp-bar-track{ width:130px; }
+
+  .rail-nav{ display:flex; flex-wrap:wrap; gap:12px; justify-content:center; margin-bottom:8px; }
+
+  .msg{ max-width:78%; border-radius:8px; padding:12px 15px; font-size:.88rem; border:3px solid #000; }
+  .msg-assistant{ align-self:flex-start; background:var(--px-bg); border-left:6px solid var(--px-cyan); }
+  .msg-user{ align-self:flex-end; background:#31401f; border-color:var(--px-green); }
+  .chat-thread{ display:flex; flex-direction:column; gap:12px; width:100%; max-width:640px; max-height:360px; overflow-y:auto; margin-bottom:14px; }
+
+  .progress-dots{ display:flex; gap:6px; margin-bottom:14px; }
+  .progress-dots span{ width:22px; height:5px; background:#1f2937; border:1px solid #000; }
+  .progress-dots span.done{ background:var(--px-green); }
+  .progress-dots span.current{ background:var(--px-yellow); }
+
+  .text-input{ width:100%; padding:10px 13px; border:3px solid #000; border-radius:2px; background:var(--px-white); color:#1a0a2e; font-size:.9rem; font-family:Inter,sans-serif; }
+  textarea.text-input{ resize:vertical; min-height:70px; }
+
+  .chip{ display:inline-flex; align-items:center; gap:6px; font-size:.7rem; font-weight:700; padding:4px 10px; border-radius:999px; border:2px solid #000; }
+  .empty-state{ color:#cbb; font-size:.85rem; text-align:center; padding:20px; }
+
+  .eval-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr)); gap:14px; width:100%; max-width:820px; }
+  .eval-card .name{ font-size:.68rem; margin-bottom:6px; }
+  .eval-card .score{ font-size:1.5rem; font-weight:800; margin-bottom:4px; }
+  .status-good{ color:var(--px-green); } .status-warn{ color:var(--px-yellow); } .status-critical{ color:var(--px-red); } .status-unknown{ color:#cbb; }
+
+  .graph-legend{ display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; font-size:.7rem; color:#cbb; }
+  .dot{ width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:5px; }
+  .gnode{ cursor:pointer; }
+  .gnode text{ font-family:Inter,sans-serif; font-size:11px; fill:#fff; }
+</style>
+</head>
+<body>
+
+<div class="hud" id="hud" style="display:none;">
+  <span class="font-pixel" style="color:var(--px-yellow);">⭐ LVL <span id="hudLevel">1</span></span>
+  <div class="hp-bar-track"><div class="hp-bar-fill" id="hudXpBar" style="--fill:0%;"></div></div>
+  <span class="font-pixel" style="color:var(--px-green);">XP <span id="hudXp">0</span></span>
+  <span class="font-pixel" style="color:var(--px-hotpink);">🪙 <span id="hudCoins">0</span></span>
+  <div class="spacer"></div>
+  <span class="font-pixel" id="hudStudent" style="font-size:.6rem; color:#cbb;"></span>
+  <button class="pixel-btn font-pixel" style="background:var(--px-red); color:#fff; font-size:.6rem; padding:8px 12px;" onclick="signOut()">SIGN OUT</button>
+</div>
+
+<!-- ======================= LANDING ======================= -->
+<section class="game-screen scanlines active" id="landing" style="background:linear-gradient(to bottom,#2a1050,#3d1f6e);">
+  <div class="mascot animate-float" style="margin-top:60px;">🧙</div>
+  <h1 class="font-pixel" style="font-size:clamp(1.2rem,4vw,2rem); color:var(--px-yellow); text-shadow:4px 4px 0 #000; margin:30px 0 10px; text-align:center;">LET'S LEARN!</h1>
+  <p class="font-pixel" style="font-size:.7rem; color:var(--px-cyan); text-shadow:2px 2px 0 #000;">— PIXEL TUTOR AI —</p>
+  <button class="pixel-btn font-pixel animate-bounce2" style="margin-top:40px; background:var(--px-magenta); color:#fff;" onclick="requireIdentity()">▶ PRESS START</button>
+  <p class="font-pixel" id="landingHint" style="font-size:.6rem; color:#cbb; margin-top:16px; text-align:center; max-width:320px;"></p>
+</section>
+
+<!-- ======================= MAIN MENU ======================= -->
+<section class="game-screen scanlines" id="mainmenu" style="background:linear-gradient(to bottom,#1a0a2e,#2a1050);">
+  <h1 class="font-pixel" style="font-size:clamp(1rem,3.5vw,1.6rem); color:var(--px-yellow); text-shadow:3px 3px 0 #000; margin-bottom:30px;">⚔ MAIN MENU ⚔</h1>
+  <button class="pixel-btn font-pixel" style="width:260px; margin-bottom:14px; background:var(--px-cyan); color:#000;" onclick="goTopicPicker()">📚 START LESSON</button>
+  <button class="pixel-btn font-pixel" style="width:260px; margin-bottom:14px; background:var(--px-yellow); color:#000;" onclick="startFreeQuest()">✨ FREE QUEST</button>
+  <button class="pixel-btn font-pixel" style="width:260px; margin-bottom:14px; background:var(--px-green); color:#000;" onclick="goScreen('progress')">📊 PROGRESS</button>
+  <button class="pixel-btn font-pixel" style="width:260px; margin-bottom:14px; background:var(--px-orange); color:#000;" onclick="goScreen('evalmetrics')">📈 MY STATS</button>
+  <button class="pixel-btn font-pixel" style="width:260px;" onclick="goScreen('misconceptions')">🧩 CONCEPT MAP</button>
+</section>
+
+<!-- ======================= WELCOME ======================= -->
+<section class="game-screen scanlines" id="welcome" style="background:linear-gradient(to bottom,#2a1050,#3d1f6e);">
+  <div class="mascot animate-float">🧙</div>
+  <h1 class="font-pixel" style="font-size:clamp(1rem,3.5vw,1.6rem); color:var(--px-yellow); text-shadow:3px 3px 0 #000; margin:24px 0 14px; text-align:center;">HELLO, HERO!</h1>
+  <div class="pixel-card" style="max-width:480px;">
+    <p class="font-body" style="font-size:.9rem;">I'm Pixel, your AI tutor. Pick a topic and I'll place you at the right level before we start — no flat defaults, no guessing.</p>
+  </div>
+  <button class="pixel-btn font-pixel" style="margin-top:26px; background:var(--px-magenta); color:#fff;" onclick="goScreen('mainmenu')">CONTINUE ▶</button>
+</section>
+
+<!-- ======================= TOPIC PICKER (feeds pretest) ======================= -->
+<section class="game-screen scanlines" id="topicpicker" style="background:linear-gradient(to bottom,#1a0a2e,#2a1050);">
+  <h1 class="font-pixel" style="font-size:1.1rem; color:var(--px-cyan); text-shadow:3px 3px 0 #000; margin-bottom:8px;">🗺 CHOOSE YOUR QUEST</h1>
+  <div id="dueReviewBanner" style="max-width:520px; margin-bottom:14px;"></div>
+  <div class="rail-nav" id="topicRow" style="max-width:640px;"></div>
+  <div id="placementArea" style="width:100%; max-width:520px; margin-top:18px;"></div>
+  <button class="pixel-btn font-pixel" style="margin-top:20px; background:var(--px-purple); color:#fff;" onclick="goScreen('mainmenu')">← BACK</button>
+</section>
+
+<!-- ======================= PRE/POST-TEST (shared quiz engine) ======================= -->
+<section class="game-screen scanlines" id="quiz" style="background:linear-gradient(to bottom,#2a1050,#3d1f6e);">
+  <h1 class="font-pixel" id="quizTitle" style="font-size:1rem; color:var(--px-yellow); text-shadow:3px 3px 0 #000; margin-bottom:6px;"></h1>
+  <div class="progress-dots" id="quizDots"></div>
+  <div class="pixel-card" style="width:100%; max-width:520px;">
+    <p class="font-body" id="quizQuestionText" style="font-size:1rem; font-weight:600; margin-bottom:14px;"></p>
+    <textarea class="text-input" id="quizAnswerInput" rows="3" placeholder="Type your answer…" oninput="onQuizAnswerInput(this.value)"></textarea>
+    <div style="display:flex; justify-content:flex-end; margin-top:14px;">
+      <button class="pixel-btn font-pixel" id="quizNextBtn" style="background:var(--px-magenta); color:#fff;" onclick="nextQuizStep()">NEXT ▶</button>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= LESSON (chat + hint ladder) ======================= -->
+<section class="game-screen scanlines" id="lesson" style="background:linear-gradient(to bottom,#1a0a2e,#2a1050); align-items:stretch;">
+  <div style="align-self:center; width:100%; max-width:640px;">
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;" id="lessonTopbar"></div>
+    <div id="ladderArea" style="margin-bottom:14px;"></div>
+    <div class="chat-thread" id="chatThread"></div>
+    <div id="activeQuestionArea"></div>
+    <div style="display:flex; gap:8px;">
+      <input class="text-input" id="chatInput" type="text" placeholder="Answer the problem, or ask a question…">
+      <button class="pixel-btn font-pixel" style="background:var(--px-green); color:#000;" onclick="sendChatMessage()">SEND</button>
+    </div>
+    <div style="margin-top:16px; text-align:center;" id="endSessionArea"></div>
+  </div>
+</section>
+
+<!-- ======================= FREE QUEST (open chat, no round tracking) ======================= -->
+<section class="game-screen scanlines" id="freequest" style="background:linear-gradient(to bottom,#1a0a2e,#2a1050); align-items:stretch;">
+  <div style="align-self:center; width:100%; max-width:640px;">
+    <h1 class="font-pixel" style="font-size:1rem; color:var(--px-cyan); text-shadow:2px 2px 0 #000; margin-bottom:10px;">✨ FREE QUEST</h1>
+    <div class="rail-nav" id="freeTopicRow" style="margin-bottom:10px;"></div>
+    <div class="chat-thread" id="freeChatThread"></div>
+    <div style="display:flex; gap:8px;">
+      <input class="text-input" id="freeChatInput" type="text" placeholder="Ask me anything about the topic above…">
+      <button class="pixel-btn font-pixel" style="background:var(--px-green); color:#000;" onclick="sendFreeChatMessage()">SEND</button>
+    </div>
+    <button class="pixel-btn font-pixel" style="margin-top:16px; background:var(--px-purple); color:#fff;" onclick="goScreen('mainmenu')">← MAIN MENU</button>
+  </div>
+</section>
+
+<!-- ======================= SESSION END / REVEAL ======================= -->
+<section class="game-screen scanlines" id="sessionend" style="background:linear-gradient(to bottom,#2a1050,#3d1f6e);">
+  <div id="revealArea" style="width:100%; max-width:520px;"></div>
+  <div style="display:flex; gap:10px; margin-top:20px;">
+    <button class="pixel-btn font-pixel" style="background:var(--px-cyan); color:#000;" onclick="goScreen('lesson'); renderChat();">CONTINUE ▶</button>
+    <button class="pixel-btn font-pixel" style="background:var(--px-purple); color:#fff;" onclick="goScreen('mainmenu')">MAIN MENU</button>
+  </div>
+</section>
+
+<!-- ======================= SESSION COMPLETE ======================= -->
+<section class="game-screen scanlines" id="sessioncomplete" style="background:linear-gradient(to bottom,#1a0a2e,#2a1050);">
+  <div class="mascot animate-bounce2">🎉</div>
+  <h1 class="font-pixel" style="font-size:clamp(1rem,3.5vw,1.6rem); color:var(--px-yellow); text-shadow:3px 3px 0 #000; margin:20px 0;">SESSION COMPLETE!</h1>
+  <p class="font-pixel" style="font-size:.7rem; color:var(--px-green);" id="sessionCompleteXp"></p>
+  <button class="pixel-btn font-pixel" style="margin-top:26px; background:var(--px-cyan); color:#000;" onclick="goScreen('mainmenu')">MAIN MENU ▶</button>
+</section>
+
+<!-- ======================= PROGRESS ======================= -->
+<section class="game-screen scanlines" id="progress" style="background:linear-gradient(to bottom,#1a0a2e,#2a1050);">
+  <h1 class="font-pixel" style="font-size:1.1rem; color:var(--px-green); text-shadow:3px 3px 0 #000; margin-bottom:16px;">📊 YOUR PROGRESS</h1>
+  <div id="progressArea" style="width:100%; max-width:600px;"></div>
+  <button class="pixel-btn font-pixel" style="margin-top:20px; background:var(--px-purple); color:#fff;" onclick="goScreen('mainmenu')">← BACK</button>
+</section>
+
+<!-- ======================= EVAL METRICS (personal stats) ======================= -->
+<section class="game-screen scanlines" id="evalmetrics" style="background:linear-gradient(to bottom,#1a0a2e,#2a1050);">
+  <h1 class="font-pixel" style="font-size:1.1rem; color:var(--px-orange); text-shadow:3px 3px 0 #000; margin-bottom:16px;">📈 MY STATS</h1>
+  <div class="eval-grid" id="evalMetricsArea"></div>
+  <button class="pixel-btn font-pixel" style="margin-top:20px; background:var(--px-purple); color:#fff;" onclick="goScreen('mainmenu')">← BACK</button>
+</section>
+
+<!-- ======================= MISCONCEPTIONS / CONCEPT MAP ======================= -->
+<section class="game-screen scanlines" id="misconceptions" style="background:linear-gradient(to bottom,#1a0a2e,#2a1050);">
+  <h1 class="font-pixel" style="font-size:1.1rem; color:var(--px-cyan); text-shadow:3px 3px 0 #000; margin-bottom:10px;">🧩 CONCEPT MAP</h1>
+  <div class="rail-nav" id="graphTopicRow" style="margin-bottom:14px;"></div>
+  <div id="graphArea" style="width:100%; max-width:640px;"></div>
+  <button class="pixel-btn font-pixel" style="margin-top:20px; background:var(--px-purple); color:#fff;" onclick="goScreen('mainmenu')">← BACK</button>
+</section>
+
+<script>
+  // ===================================================================
+  // API — same contract the simple dashboard talks to (same FastAPI
+  // server, mounted at /api/* on this same origin).
+  // ===================================================================
+  function api(path, opts){
+    opts = opts || {};
+    var method = opts.method || 'GET';
+    var body = opts.body;
+    var fetchOpts = { method: method, headers: {} };
+    if (body !== undefined){
+      fetchOpts.headers['Content-Type'] = 'application/json';
+      fetchOpts.body = JSON.stringify(body);
+    }
+    return fetch(path, fetchOpts).then(function(res){
+      return res.json().then(function(data){
+        if (!res.ok) throw new Error(data.detail || ('Request failed (' + res.status + ')'));
+        return data;
+      });
+    });
+  }
+  function qs(params){
+    return Object.keys(params).map(function(k){ return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]); }).join('&');
+  }
+  function esc(s){
+    if (s === null || s === undefined) return '';
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function mdToHtml(text){
+    var out = esc(text);
+    out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    out = out.replace(/\n/g, '<br>');
+    return out;
+  }
+
+  var TOPICS = ['Fractions', 'Probability', 'Algebra', 'Geometry', 'Decimals and Percentages'];
+
+  // Cosmetic-only game state -- not backend-tracked, exactly the flourish
+  // layer the reference design called for (XP/coins/level).
+  var game = { xp: 0, coins: 0, level: 1 };
+  function addXp(n){
+    game.xp += n;
+    while (game.xp >= game.level * 100){ game.xp -= game.level * 100; game.level += 1; }
+    renderHud();
+  }
+  function addCoins(n){ game.coins += n; renderHud(); }
+  function renderHud(){
+    document.getElementById('hudLevel').textContent = game.level;
+    document.getElementById('hudXp').textContent = game.xp;
+    document.getElementById('hudCoins').textContent = game.coins;
+    document.getElementById('hudXpBar').style.setProperty('--fill', Math.round(game.xp / (game.level * 100) * 100) + '%');
+  }
+
+  var state = {
+    studentId: null,
+    currentConcept: null,
+    lastState: null,
+    quiz: null,   // { variant, questions, index, answers }
+  };
+
+  function goScreen(id){
+    document.querySelectorAll('.game-screen').forEach(function(s){ s.classList.toggle('active', s.id === id); });
+    if (id === 'progress') loadProgress();
+    if (id === 'evalmetrics') loadEvalMetrics();
+    if (id === 'misconceptions') loadGraphTopics();
+  }
+
+  // ===================================================================
+  // Identity -- comes from the shared outer login (simple dashboard),
+  // never a separate sign-in screen here.
+  // ===================================================================
+  function requireIdentity(){
+    if (state.studentId){ goScreen('welcome'); return; }
+    window.location.href = '/';
+  }
+  function signOut(){
+    localStorage.removeItem('mentora_student_id');
+    window.location.href = '/';
+  }
+
+  (function boot(){
+    var params = new URLSearchParams(window.location.search);
+    var id = params.get('student_id') || localStorage.getItem('mentora_student_id');
+    if (!id){
+      document.getElementById('landingHint').textContent = 'Sign in on the main Mentora page first, then come back here.';
+      return;
+    }
+    state.studentId = id;
+    localStorage.setItem('mentora_student_id', id);
+    document.getElementById('hud').style.display = 'flex';
+    document.getElementById('hudStudent').textContent = id;
+    renderHud();
+  })();
+
+  // ===================================================================
+  // Topic picker -> placement (pretest)
+  // ===================================================================
+  function goTopicPicker(){
+    state.currentConcept = state.currentConcept || TOPICS[0];
+    goScreen('topicpicker');
+    loadTopicPicker();
+  }
+  function loadTopicPicker(){
+    api('/api/state?' + qs({student_id: state.studentId, concept: state.currentConcept})).then(function(res){
+      state.lastState = res;
+      renderDueBanner(res.due_for_review);
+      renderTopicRow();
+    });
+  }
+  function renderDueBanner(due){
+    var el = document.getElementById('dueReviewBanner');
+    if (!due || !due.length){ el.innerHTML = ''; return; }
+    el.innerHTML = '<div class="pixel-card font-body" style="font-size:.8rem; border-color:var(--px-green);">📅 <strong>' + esc(due.join(', ')) + '</strong> ' + (due.length === 1 ? 'is' : 'are') + ' due for review.</div>';
+  }
+  function renderTopicRow(){
+    var mastery = (state.lastState.profile && state.lastState.profile.concept_mastery) || {};
+    var row = document.getElementById('topicRow');
+    row.innerHTML = TOPICS.map(function(t){
+      var entry = mastery[t];
+      var pct = entry ? Math.round(entry.mastery * 100) + '%' : 'NEW';
+      var sel = t === state.currentConcept;
+      return '<button class="pixel-btn font-pixel" style="font-size:.62rem; background:' + (sel ? 'var(--px-yellow)' : 'var(--px-bg)') + '; color:' + (sel ? '#000' : '#fff') + ';" onclick="pickTopic(\'' + esc(t).replace(/'/g,"\\'") + '\')">' + esc(t) + '<br><span style="opacity:.75;">' + pct + '</span></button>';
+    }).join('');
+    renderPlacementArea();
+  }
+  function pickTopic(t){
+    state.currentConcept = t;
+    state.quiz = null;
+    loadTopicPicker();
+  }
+  function renderPlacementArea(){
+    var el = document.getElementById('placementArea');
+    var pre = state.lastState.pre_test_scores ? state.lastState.pre_test_scores[state.currentConcept] : undefined;
+    if (pre !== undefined){
+      el.innerHTML = '<div style="text-align:center;"><button class="pixel-btn font-pixel" style="background:var(--px-magenta); color:#fff;" onclick="goScreen(\'lesson\'); renderChat();">⚔ START LESSON</button></div>';
+      return;
+    }
+    el.innerHTML = '<div class="pixel-card font-body" style="text-align:center;">' +
+      '<p style="font-size:.85rem; margin-bottom:12px;">Quick placement check — a few questions so I know where to start.</p>' +
+      '<button class="pixel-btn font-pixel" style="background:var(--px-cyan); color:#000; margin-right:8px;" onclick="startQuiz(\'pre\')">START</button>' +
+      '<button class="pixel-btn font-pixel" style="background:var(--px-bg2); color:#cbb;" onclick="skipQuiz(\'pre\')">SKIP</button></div>';
+  }
+  function skipQuiz(variant){
+    api('/api/quiz/skip', {method: 'POST', body: {student_id: state.studentId, concept: state.currentConcept, variant: variant}}).then(function(){
+      if (!state.lastState.pre_test_scores) state.lastState.pre_test_scores = {};
+      state.lastState.pre_test_scores[state.currentConcept] = null;
+      renderPlacementArea();
+    });
+  }
+
+  // ===================================================================
+  // Shared quiz engine (pre-test / post-test) -- free-text, no MCQ, no
+  // answer leaked to the client.
+  // ===================================================================
+  function startQuiz(variant){
+    api('/api/quiz/start', {method: 'POST', body: {student_id: state.studentId, concept: state.currentConcept, variant: variant}}).then(function(res){
+      if (!res.questions.length){ alert("Couldn't generate quiz questions right now (is Ollama running?)."); return; }
+      state.quiz = {variant: variant, questions: res.questions, index: 0, answers: res.questions.map(function(){ return ''; })};
+      goScreen('quiz');
+      renderQuizStep();
+    });
+  }
+  function renderQuizStep(){
+    var q = state.quiz.questions[state.quiz.index];
+    document.getElementById('quizTitle').textContent = (state.quiz.variant === 'pre' ? '📋 PLACEMENT CHECK' : '🏁 POST-TEST') + ' — Q' + (state.quiz.index + 1) + '/' + state.quiz.questions.length;
+    document.getElementById('quizDots').innerHTML = state.quiz.questions.map(function(_, i){
+      var cls = i < state.quiz.index ? 'done' : (i === state.quiz.index ? 'current' : '');
+      return '<span class="' + cls + '"></span>';
+    }).join('');
+    document.getElementById('quizQuestionText').textContent = q.question_text;
+    var input = document.getElementById('quizAnswerInput');
+    input.value = state.quiz.answers[state.quiz.index] || '';
+    var isLast = state.quiz.index === state.quiz.questions.length - 1;
+    document.getElementById('quizNextBtn').textContent = isLast ? 'FINISH ✔' : 'NEXT ▶';
+    onQuizAnswerInput(input.value);
+  }
+  function onQuizAnswerInput(v){
+    state.quiz.answers[state.quiz.index] = v;
+    document.getElementById('quizNextBtn').disabled = v.trim().length === 0;
+  }
+  function nextQuizStep(){
+    var isLast = state.quiz.index === state.quiz.questions.length - 1;
+    if (!isLast){ state.quiz.index += 1; renderQuizStep(); return; }
+    var variant = state.quiz.variant;
+    var answers = state.quiz.questions.map(function(q, i){
+      return {question_id: q.question_id, question_text: q.question_text, answer_text: state.quiz.answers[i]};
+    });
+    api('/api/quiz/submit', {method: 'POST', body: {student_id: state.studentId, concept: state.currentConcept, variant: variant, answers: answers}}).then(function(res){
+      if (!state.lastState.pre_test_scores) state.lastState.pre_test_scores = {};
+      if (!state.lastState.post_test_scores) state.lastState.post_test_scores = {};
+      if (variant === 'pre') state.lastState.pre_test_scores[state.currentConcept] = [res.correct, res.total];
+      else state.lastState.post_test_scores[state.currentConcept] = [res.correct, res.total];
+      addXp(res.correct * 10);
+      addCoins(res.correct * 5);
+      state.quiz = null;
+      if (variant === 'pre'){ goScreen('topicpicker'); renderPlacementArea(); }
+      else { goScreen('sessionend'); renderRevealArea(); }
+    });
+  }
+  function renderRevealArea(){
+    var el = document.getElementById('revealArea');
+    var pre = state.lastState.pre_test_scores ? state.lastState.pre_test_scores[state.currentConcept] : null;
+    var post = state.lastState.post_test_scores ? state.lastState.post_test_scores[state.currentConcept] : null;
+    if (!post){ el.innerHTML = '<p class="empty-state">No post-test on record yet.</p>'; return; }
+    if (!pre){
+      el.innerHTML = '<div class="pixel-card font-body" style="text-align:center;"><p style="font-size:.75rem; opacity:.8;">' + esc(state.currentConcept) + ' — post-test</p>' +
+        '<p style="font-size:1.3rem; font-weight:800; margin:6px 0;">' + post[0] + '/' + post[1] + ' correct</p>' +
+        '<p style="font-size:.8rem; opacity:.75;">No pre-test on record, so no gain to show — just the score.</p></div>';
+      return;
+    }
+    var prePct = Math.round(pre[0] / pre[1] * 100), postPct = Math.round(post[0] / post[1] * 100);
+    el.innerHTML = '<div class="pixel-card font-body" style="text-align:center;">' +
+      '<p style="font-size:.75rem; opacity:.8; margin-bottom:8px;">' + esc(state.currentConcept) + ' — LEARNING GAIN</p>' +
+      '<div style="display:flex; justify-content:center; align-items:baseline; gap:16px; margin-bottom:12px;">' +
+      '<span style="font-size:1.6rem; opacity:.7;">' + prePct + '%</span><span style="opacity:.6;">→</span><span style="font-size:2.2rem; font-weight:800; color:var(--px-green);">' + postPct + '%</span></div>' +
+      '<div class="hp-bar-track" style="width:100%;"><div class="hp-bar-fill" style="--fill:' + postPct + '%;"></div></div>' +
+      '<p style="font-size:.78rem; opacity:.75; margin-top:10px;">' + pre[0] + '/' + pre[1] + ' correct before → ' + post[0] + '/' + post[1] + ' correct after.</p></div>';
+  }
+
+  // ===================================================================
+  // Lesson: chat + hint ladder (the graded tutoring loop)
+  // ===================================================================
+  function renderChat(){
+    api('/api/state?' + qs({student_id: state.studentId, concept: state.currentConcept})).then(function(res){
+      state.lastState = res;
+      renderLessonTopbar();
+      renderChatThreadInto('chatThread', res.messages);
+      renderLadder(res.hint_ladder);
+      renderActiveQuestion(res.active_question);
+      renderEndSessionButton();
+    });
+  }
+  function renderLessonTopbar(){
+    var mastery = (state.lastState.profile && state.lastState.profile.concept_mastery) || {};
+    var entry = mastery[state.currentConcept];
+    var chips = '<span class="chip" style="background:var(--px-yellow); color:#000;">' + esc(state.currentConcept || '—') + '</span>';
+    if (entry) chips += '<span class="chip" style="background:var(--px-bg); color:#fff;">Mastery ' + Math.round(entry.mastery * 100) + '%</span>';
+    document.getElementById('lessonTopbar').innerHTML = chips;
+  }
+  function renderChatThreadInto(elId, messages){
+    var thread = document.getElementById(elId);
+    thread.innerHTML = (messages || []).map(function(m){
+      var cls = m.role === 'user' ? 'msg-user' : 'msg-assistant';
+      return '<div class="msg ' + cls + '">' + mdToHtml(m.content) + '</div>';
+    }).join('');
+    thread.scrollTop = thread.scrollHeight;
+  }
+  function renderActiveQuestion(q){
+    var el = document.getElementById('activeQuestionArea');
+    if (!q){ el.innerHTML = ''; return; }
+    el.innerHTML = '<div class="pixel-card font-body" style="font-size:.82rem; margin-bottom:10px; border-color:var(--px-yellow);"><strong style="color:var(--px-yellow);">CURRENT QUEST:</strong> ' + esc(q) + '</div>';
+  }
+  function renderLadder(payload){
+    var el = document.getElementById('ladderArea');
+    if (!payload || payload.kind === 'none'){ el.innerHTML = ''; return; }
+    if (payload.kind === 'note'){ el.innerHTML = '<div class="pixel-card font-body" style="font-size:.8rem; border-color:var(--px-red);">🚨 ' + esc(payload.text) + '</div>'; return; }
+    el.innerHTML = '<div style="display:flex; gap:8px;">' + payload.labels.map(function(label, i){
+      var done = i < payload.current_index, curr = i === payload.current_index;
+      var bg = done ? 'var(--px-green)' : (curr ? 'var(--px-yellow)' : 'var(--px-bg)');
+      return '<div class="chip" style="flex:1; justify-content:center; background:' + bg + '; color:#000;">' + (done ? '✔' : (i+1)) + ' ' + esc(label) + '</div>';
+    }).join('') + '</div>';
+  }
+  function renderEndSessionButton(){
+    var el = document.getElementById('endSessionArea');
+    var pre = state.lastState.pre_test_scores ? state.lastState.pre_test_scores[state.currentConcept] : undefined;
+    var post = state.lastState.post_test_scores ? state.lastState.post_test_scores[state.currentConcept] : undefined;
+    if (pre !== undefined && pre !== null && !post){
+      el.innerHTML = '<button class="pixel-btn font-pixel" style="background:var(--px-orange); color:#000;" onclick="startQuiz(\'post\')">🏁 END SESSION — POST-TEST</button>';
+    } else { el.innerHTML = ''; }
+  }
+  function sendChatMessage(){
+    var input = document.getElementById('chatInput');
+    var message = input.value.trim();
+    if (!message) return;
+    var wasAnswering = !!state.lastState.active_question;
+    input.value = ''; input.disabled = true;
+    state.lastState.messages.push({role: 'user', content: message});
+    renderChatThreadInto('chatThread', state.lastState.messages);
+    api('/api/chat', {method: 'POST', body: {student_id: state.studentId, concept: state.currentConcept, message: message}}).then(function(res){
+      state.lastState.messages.push({role: 'assistant', content: res.reply});
+      state.lastState.active_question = res.active_question;
+      state.lastState.profile = res.profile;
+      state.lastState.hint_ladder = res.hint_ladder;
+      renderChatThreadInto('chatThread', state.lastState.messages);
+      renderLessonTopbar();
+      renderLadder(res.hint_ladder);
+      renderActiveQuestion(res.active_question);
+      renderEndSessionButton();
+      if (res.escalated){
+        state.lastState.messages.push({role: 'assistant', content: '🚨 Your teacher has been notified and will follow up with you on this.'});
+        renderChatThreadInto('chatThread', state.lastState.messages);
+      } else if (wasAnswering && res.hint_ladder && res.hint_ladder.kind === 'none'){
+        // Graded a correct answer (not explain mode, not a hint-ladder miss).
+        addXp(15); addCoins(3);
+      }
+    }).catch(function(err){
+      state.lastState.messages.push({role: 'assistant', content: '⚠️ ' + err.message});
+      renderChatThreadInto('chatThread', state.lastState.messages);
+    }).finally(function(){ input.disabled = false; input.focus(); });
+  }
+  document.addEventListener('keydown', function(e){
+    if (e.key !== 'Enter') return;
+    if (document.activeElement && document.activeElement.id === 'chatInput') sendChatMessage();
+    if (document.activeElement && document.activeElement.id === 'freeChatInput') sendFreeChatMessage();
+  });
+
+  // ===================================================================
+  // Free Quest -- open explain-mode chat, no round/quiz tracking
+  // ===================================================================
+  var freeQuestState = { concept: null, messages: [] };
+  function startFreeQuest(){
+    freeQuestState.concept = freeQuestState.concept || TOPICS[0];
+    goScreen('freequest');
+    renderFreeTopicRow();
+    api('/api/state?' + qs({student_id: state.studentId, concept: freeQuestState.concept})).then(function(res){
+      freeQuestState.messages = res.messages;
+      renderChatThreadInto('freeChatThread', freeQuestState.messages);
+    });
+  }
+  function renderFreeTopicRow(){
+    var row = document.getElementById('freeTopicRow');
+    row.innerHTML = TOPICS.map(function(t){
+      var sel = t === freeQuestState.concept;
+      return '<button class="pixel-btn font-pixel" style="font-size:.6rem; background:' + (sel ? 'var(--px-yellow)' : 'var(--px-bg)') + '; color:' + (sel ? '#000' : '#fff') + ';" onclick="pickFreeTopic(\'' + esc(t).replace(/'/g,"\\'") + '\')">' + esc(t) + '</button>';
+    }).join('');
+  }
+  function pickFreeTopic(t){
+    freeQuestState.concept = t;
+    startFreeQuest();
+  }
+  function sendFreeChatMessage(){
+    var input = document.getElementById('freeChatInput');
+    var message = input.value.trim();
+    if (!message) return;
+    input.value = ''; input.disabled = true;
+    freeQuestState.messages.push({role: 'user', content: message});
+    renderChatThreadInto('freeChatThread', freeQuestState.messages);
+    api('/api/chat', {method: 'POST', body: {student_id: state.studentId, concept: freeQuestState.concept, message: message}}).then(function(res){
+      freeQuestState.messages.push({role: 'assistant', content: res.reply});
+      renderChatThreadInto('freeChatThread', freeQuestState.messages);
+    }).catch(function(err){
+      freeQuestState.messages.push({role: 'assistant', content: '⚠️ ' + err.message});
+      renderChatThreadInto('freeChatThread', freeQuestState.messages);
+    }).finally(function(){ input.disabled = false; input.focus(); });
+  }
+
+  // ===================================================================
+  // Progress (own profile) / Eval metrics (own stats) / Concept map
+  // ===================================================================
+  function loadProgress(){
+    var el = document.getElementById('progressArea');
+    el.innerHTML = '<p class="empty-state">Loading…</p>';
+    api('/api/profile?' + qs({student_id: state.studentId})).then(function(res){
+      var mastery = (res.profile && res.profile.concept_mastery) || {};
+      var names = Object.keys(mastery);
+      if (!names.length){ el.innerHTML = '<p class="empty-state">No concept history yet — start a lesson!</p>'; return; }
+      el.innerHTML = names.map(function(name){
+        var pct = Math.round((mastery[name].mastery || 0) * 100);
+        var color = pct >= 70 ? 'var(--px-green)' : (pct >= 40 ? 'var(--px-yellow)' : 'var(--px-red)');
+        return '<div class="pixel-card font-body" style="margin-bottom:10px;">' +
+          '<div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:.85rem;"><strong>' + esc(name) + '</strong><span>' + pct + '%</span></div>' +
+          '<div class="hp-bar-track"><div class="hp-bar-fill" style="--fill:' + pct + '%; background:' + color + ';"></div></div></div>';
+      }).join('');
+    });
+  }
+  function loadEvalMetrics(){
+    var el = document.getElementById('evalMetricsArea');
+    el.innerHTML = '<p class="empty-state">Loading…</p>';
+    api('/api/eval-metrics?' + qs({student_id: state.studentId})).then(function(res){
+      el.innerHTML = res.metrics.map(function(m){
+        return '<div class="pixel-card eval-card"><div class="font-pixel name">' + esc(m.label) + '</div>' +
+          '<div class="score status-' + esc(m.status) + '">' + esc(m.display) + '</div>' +
+          '<div class="font-body" style="font-size:.72rem; opacity:.75;">' + esc(m.description) + '</div></div>';
+      }).join('');
+    });
+  }
+  function loadGraphTopics(){
+    var row = document.getElementById('graphTopicRow');
+    row.innerHTML = TOPICS.map(function(t){
+      return '<button class="pixel-btn font-pixel" style="font-size:.6rem; background:var(--px-bg); color:#fff;" onclick="loadGraph(\'' + esc(t).replace(/'/g,"\\'") + '\')">' + esc(t) + '</button>';
+    }).join('');
+    loadGraph(state.currentConcept || TOPICS[0]);
+  }
+  function loadGraph(concept){
+    api('/api/misconception-graph?' + qs({concept: concept, student_id: state.studentId})).then(renderGraph);
+  }
+  function colorForMastery(pct){ return pct >= 70 ? 'var(--px-green)' : (pct >= 40 ? 'var(--px-yellow)' : 'var(--px-red)'); }
+  function renderGraph(data){
+    var wrap = document.getElementById('graphArea');
+    if (!data.neo4j_available){ wrap.innerHTML = '<p class="empty-state">Neo4j isn\'t connected — the concept map is empty until it is.</p>'; return; }
+    if (!data.nodes || data.nodes.length <= 1){ wrap.innerHTML = '<p class="empty-state">No prerequisites on record for this concept yet.</p>'; return; }
+    var focus = data.nodes[0], prereqs = data.nodes.slice(1);
+    var cx = 320, focusY = 60, prereqY = 190, spacing = 640 / (prereqs.length + 1);
+    var svg = '<svg viewBox="0 0 640 260" width="100%" height="260">';
+    prereqs.forEach(function(_, i){
+      var px = spacing * (i + 1);
+      svg += '<line x1="' + cx + '" y1="' + (focusY+26) + '" x2="' + px + '" y2="' + (prereqY-26) + '" stroke="#8891a6" stroke-width="1.5"/>';
+    });
+    var pct0 = Math.round((focus.mastery||0)*100);
+    svg += '<g class="gnode"><circle cx="' + cx + '" cy="' + focusY + '" r="26" fill="' + colorForMastery(pct0) + '" stroke="#000" stroke-width="2"/><text x="' + cx + '" y="' + (focusY+4) + '" text-anchor="middle">' + esc(focus.name.slice(0,12)) + '</text></g>';
+    prereqs.forEach(function(node, i){
+      var px = spacing * (i + 1), pct = Math.round((node.mastery||0)*100);
+      svg += '<g class="gnode"><circle cx="' + px + '" cy="' + prereqY + '" r="24" fill="' + colorForMastery(pct) + '" stroke="#000" stroke-width="2"/><text x="' + px + '" y="' + (prereqY+4) + '" text-anchor="middle">' + esc(node.name.slice(0,12)) + '</text></g>';
+    });
+    svg += '</svg>';
+    wrap.innerHTML = svg + '<div class="graph-legend"><span><i class="dot" style="background:var(--px-red)"></i>Weak (&lt;40%)</span><span><i class="dot" style="background:var(--px-yellow)"></i>Developing</span><span><i class="dot" style="background:var(--px-green)"></i>Mastered (70%+)</span></div>';
+  }
+</script>
+
+</body>
+</html>

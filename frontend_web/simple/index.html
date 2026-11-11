@@ -1,0 +1,1045 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mentora — Adaptive AI Tutor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=Caveat:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F2E9D8;
+    --paper-raised:#FBF5E7;
+    --paper-sunken:#EADFC8;
+    --ink:#2B2013;
+    --ink-muted:#6B5D48;
+    --gold:#A9781F;
+    --gold-soft:#EEDBA8;
+    --sage:#5C7443;
+    --sage-soft:#DCE5C7;
+    --terracotta:#B0532F;
+    --terracotta-soft:#F0D6C4;
+    --plum:#5B4869;
+    --plum-soft:#DFD3E6;
+    --line: rgba(43,32,19,.16);
+    --shadow: 0 1px 2px rgba(43,32,19,.06), 0 8px 20px -12px rgba(43,32,19,.18);
+
+    --font-display: "Iowan Old Style","Palatino Linotype",Palatino,"URW Palladio L",Georgia,serif;
+    --font-body: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-data: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  }
+  :root[data-theme="dark"]{
+    --paper:#1B1610; --paper-raised:#251F17; --paper-sunken:#161209;
+    --ink:#EFE4CD; --ink-muted:#AC9D82; --gold:#D9A94D; --gold-soft:#4A3B1E;
+    --sage:#93AC74; --sage-soft:#31401F; --terracotta:#DD8A63; --terracotta-soft:#4A2A1B;
+    --plum:#B79BCB; --plum-soft:#372B47; --line: rgba(239,228,205,.16);
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 24px -14px rgba(0,0,0,.55);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#1B1610; --paper-raised:#251F17; --paper-sunken:#161209;
+      --ink:#EFE4CD; --ink-muted:#AC9D82; --gold:#D9A94D; --gold-soft:#4A3B1E;
+      --sage:#93AC74; --sage-soft:#31401F; --terracotta:#DD8A63; --terracotta-soft:#4A2A1B;
+      --plum:#B79BCB; --plum-soft:#372B47; --line: rgba(239,228,205,.16);
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 24px -14px rgba(0,0,0,.55);
+    }
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:var(--font-body); font-size:15px; line-height:1.5;
+  }
+  a{ color:inherit; }
+  h1,h2,h3{ font-family:var(--font-display); font-weight:600; text-wrap:balance; margin:0; }
+  button{ font-family:inherit; }
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:.001ms !important; transition-duration:.001ms !important; }
+  }
+
+  .login-wrap{ min-height:100vh; display:grid; place-items:center; padding:24px; }
+  .login-card{ width:380px; max-width:100%; }
+  .text-input{
+    width:100%; padding:10px 13px; border:1px solid var(--line); border-radius:9px;
+    background:var(--paper); color:var(--ink); font-size:.9rem; font-family:inherit;
+  }
+  .text-input:focus{ outline:2px solid var(--gold); outline-offset:1px; border-color:var(--gold); }
+  textarea.text-input{ resize:vertical; min-height:64px; font-family:var(--font-body); }
+
+  .app-shell{ display:flex; min-height:100vh; }
+  .rail{
+    width:246px; flex:0 0 246px; background:var(--paper-sunken);
+    border-right:1px solid var(--line); padding:22px 16px 16px;
+    display:flex; flex-direction:column; gap:18px;
+    position:sticky; top:0; height:100vh; overflow-y:auto;
+  }
+  .wordmark{ font-family:var(--font-display); font-size:1.5rem; font-style:italic; letter-spacing:.01em; }
+  .rail-tag{ font-size:.72rem; color:var(--ink-muted); margin-top:-12px; letter-spacing:.02em; }
+  .screen-list{ display:flex; flex-direction:column; gap:3px; }
+  .rail-label{ font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-muted); margin:6px 2px 2px; }
+  .screen-btn{
+    display:flex; align-items:baseline; gap:8px; text-align:left; border:none;
+    background:transparent; color:var(--ink); padding:8px 9px; border-radius:8px;
+    cursor:pointer; font-size:.86rem; width:100%;
+  }
+  .screen-btn:hover{ background:var(--paper); }
+  .screen-btn.active{ background:var(--paper-raised); box-shadow:var(--shadow); font-weight:600; }
+  .screen-btn:focus-visible, button:focus-visible, .gnode:focus-visible{ outline:2px solid var(--gold); outline-offset:2px; }
+  .screen-btn .num{ font-family:var(--font-data); font-size:.72rem; color:var(--gold); min-width:1.1em; }
+  .rail-footer{ margin-top:auto; font-size:.76rem; color:var(--ink-muted); border-top:1px solid var(--line); padding-top:12px; line-height:1.5; }
+
+  .canvas{ flex:1; min-width:0; display:flex; flex-direction:column; }
+  .screen{ display:none; padding:30px 28px 60px; max-width:980px; }
+  .screen.active{ display:block; }
+  .screen-header{ margin-bottom:22px; }
+  .eyebrow{ font-size:.72rem; text-transform:uppercase; letter-spacing:.09em; color:var(--gold); font-weight:700; margin-bottom:6px; }
+  .screen-title{ font-size:1.55rem; }
+  .screen-sub{ color:var(--ink-muted); font-size:.9rem; margin-top:6px; max-width:62ch; }
+
+  .card{ background:var(--paper-raised); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); padding:18px 20px; }
+  .card-title{ font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-muted); font-weight:700; margin-bottom:12px; }
+  .stack{ display:flex; flex-direction:column; gap:16px; }
+  .row{ display:flex; gap:16px; }
+  .row.wrap{ flex-wrap:wrap; }
+  @media (max-width:720px){ .row{ flex-direction:column; } }
+  .empty-state{ color:var(--ink-muted); font-size:.86rem; padding:10px 2px; }
+
+  .tag{ display:inline-flex; align-items:center; gap:4px; font-size:.68rem; font-weight:700; letter-spacing:.04em; padding:2px 8px; border-radius:999px; text-transform:uppercase; }
+  .tag-illustrative{ background:transparent; border:1px dashed var(--plum); color:var(--plum); }
+
+  .chip{ display:inline-flex; align-items:center; gap:6px; font-size:.78rem; font-weight:600; padding:4px 11px; border-radius:999px; border:1px solid transparent; }
+  .chip-sage{ background:var(--sage-soft); color:var(--sage); }
+  .chip-gold{ background:var(--gold-soft); color:var(--gold); }
+  .chip-terracotta{ background:var(--terracotta-soft); color:var(--terracotta); }
+  .chip-plum{ background:var(--plum-soft); color:var(--plum); }
+  .chip-outline{ background:transparent; border:1px solid var(--line); color:var(--ink-muted); }
+
+  .btn{ font-size:.85rem; font-weight:600; padding:9px 18px; border-radius:9px; cursor:pointer; border:1px solid transparent; letter-spacing:.01em; }
+  .btn-primary{ background:var(--gold); color:var(--paper-raised); }
+  .btn-primary:disabled{ opacity:.5; cursor:not-allowed; }
+  .btn-ghost{ background:transparent; border-color:var(--line); color:var(--ink); }
+  .cta-row{ display:flex; gap:10px; justify-content:flex-end; margin-top:18px; flex-wrap:wrap; }
+
+  .topic-row{ display:flex; gap:10px; flex-wrap:wrap; }
+  .topic-chip{ border:1px solid var(--line); background:var(--paper); border-radius:11px; padding:10px 14px; cursor:pointer; display:flex; flex-direction:column; gap:6px; min-width:128px; }
+  .topic-chip.selected{ border-color:var(--gold); background:var(--gold-soft); }
+  .topic-chip .t-name{ font-weight:600; font-size:.86rem; }
+  .topic-chip .t-meta{ font-size:.72rem; color:var(--ink-muted); }
+
+  .banner-review{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:var(--sage-soft); border:1px solid var(--sage); border-radius:11px; padding:11px 16px; font-size:.88rem; }
+  .banner-review strong{ color:var(--sage); }
+
+  .progress-dots{ display:flex; gap:6px; margin-bottom:14px; }
+  .progress-dots span{ width:22px; height:4px; border-radius:2px; background:var(--paper-sunken); }
+  .progress-dots span.done{ background:var(--sage); }
+  .progress-dots span.current{ background:var(--gold); }
+
+  .quiz-question{ font-size:1.02rem; font-weight:600; margin-bottom:14px; }
+
+  .session-topbar{ display:flex; align-items:center; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+
+  .ladder-stepper{ display:flex; align-items:center; margin-bottom:22px; }
+  .ladder-step{ display:flex; flex-direction:column; align-items:center; gap:8px; flex:1; position:relative; }
+  .ladder-step .node{ width:26px; height:26px; border-radius:50%; display:grid; place-items:center; font-family:var(--font-data); font-size:.72rem; border:2px solid var(--paper-sunken); background:var(--paper-raised); color:var(--ink-muted); z-index:1; }
+  .ladder-step.done .node{ border-color:var(--sage); background:var(--sage); color:var(--paper-raised); }
+  .ladder-step.current .node{ border-color:var(--gold); color:var(--gold); box-shadow:0 0 0 4px var(--gold-soft); }
+  .ladder-step .label{ font-size:.74rem; color:var(--ink-muted); text-align:center; }
+  .ladder-step.current .label{ color:var(--ink); font-weight:600; }
+  .ladder-line{ position:absolute; top:13px; left:-50%; width:100%; height:2px; background:var(--paper-sunken); z-index:0; }
+  .ladder-step.done .ladder-line{ background:var(--sage); }
+  .ladder-step:first-child .ladder-line{ display:none; }
+  .ladder-note{ font-size:.82rem; color:var(--ink-muted); background:var(--paper-raised); border:1px dashed var(--line); border-radius:9px; padding:8px 12px; margin-bottom:16px; }
+
+  .chat-thread{ display:flex; flex-direction:column; gap:14px; margin-bottom:18px; max-height:420px; overflow-y:auto; padding-right:2px; }
+  .msg{ max-width:78%; border-radius:13px; padding:12px 15px; font-size:.88rem; }
+  .msg-assistant{ align-self:flex-start; background:var(--paper); border:1px solid var(--line); border-left:3px solid var(--gold); }
+  .msg-user{ align-self:flex-end; background:var(--sage-soft); border:1px solid var(--sage); }
+
+  .active-question-card{ background:var(--gold-soft); border:1px solid var(--gold); border-radius:11px; padding:12px 16px; font-size:.86rem; margin-bottom:12px; }
+  .active-question-card .aq-label{ font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; color:var(--gold); font-weight:700; margin-bottom:4px; }
+
+  .chat-input-row{ display:flex; gap:10px; }
+  .chat-input-row input{ flex:1; }
+
+  .reveal-card{ text-align:center; padding:30px 24px; }
+  .reveal-numbers{ display:flex; justify-content:center; align-items:baseline; gap:22px; margin:6px 0 22px; flex-wrap:wrap; }
+  .reveal-num{ font-family:var(--font-body); font-weight:800; font-variant-numeric:tabular-nums; }
+  .reveal-num.before{ font-size:2rem; color:var(--ink-muted); }
+  .reveal-num.after{ font-size:2.6rem; color:var(--sage); }
+  .reveal-arrow{ color:var(--ink-muted); font-size:1.4rem; }
+  .bar-track{ height:10px; border-radius:6px; background:var(--paper-sunken); overflow:hidden; margin:6px 0 16px; }
+  .bar-fill{ height:100%; border-radius:6px; background:linear-gradient(90deg, var(--gold), var(--sage)); }
+
+  .next-review-card{ display:flex; align-items:center; gap:14px; }
+  .next-review-card .date-badge{ font-family:var(--font-data); font-size:.9rem; font-weight:700; color:var(--gold); background:var(--gold-soft); border-radius:9px; padding:10px 14px; text-align:center; min-width:64px; }
+
+  .roster-toolbar{ display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+  .roster-toolbar input{ flex:1; min-width:220px; }
+  .roster-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr)); gap:14px; }
+  .mastery-ring{
+    width:48px; height:48px; border-radius:50%; flex:0 0 auto; margin-left:auto;
+    background:conic-gradient(var(--ring-color) calc(var(--pct)*1%), var(--paper-sunken) 0);
+    display:grid; place-items:center;
+  }
+  .mastery-ring .ring-inner{ width:34px; height:34px; border-radius:50%; background:var(--paper-raised); display:grid; place-items:center; font-size:.66rem; font-weight:700; font-variant-numeric:tabular-nums; }
+  .concept-card{ display:flex; flex-direction:column; gap:10px; }
+  .concept-card .head{ display:flex; align-items:center; gap:12px; }
+  .concept-card .name{ font-weight:700; font-size:.9rem; }
+  .concept-card .foot{ font-size:.72rem; color:var(--ink-muted); }
+
+  .eval-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:14px; }
+  .eval-card .metric-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+  .eval-card .metric-name{ font-size:.78rem; font-weight:700; }
+  .eval-score{ font-size:1.7rem; font-weight:800; font-variant-numeric:tabular-nums; margin:2px 0 4px; }
+  .eval-def{ font-size:.72rem; color:var(--ink-muted); line-height:1.5; }
+  .eval-score.status-good{ color:var(--sage); }
+  .eval-score.status-warn{ color:var(--gold); }
+  .eval-score.status-critical{ color:var(--terracotta); }
+  .eval-score.status-unknown{ color:var(--ink-muted); }
+
+  .graph-layout{ display:flex; gap:18px; align-items:flex-start; }
+  @media (max-width:760px){ .graph-layout{ flex-direction:column; } }
+  .graph-canvas-wrap{ flex:1; min-width:0; overflow-x:auto; border:1px solid var(--line); border-radius:12px; background:var(--paper); min-height:260px; }
+  .node-detail-panel{ width:230px; flex:0 0 230px; }
+  @media (max-width:760px){ .node-detail-panel{ width:100%; flex:none; } }
+  .gnode{ cursor:pointer; }
+  .gnode circle{ stroke-width:2px; }
+  .gnode text{ font-family:var(--font-body); font-size:11px; fill:var(--ink); }
+  .graph-legend{ display:flex; gap:16px; flex-wrap:wrap; margin-top:12px; font-size:.74rem; color:var(--ink-muted); }
+  .dot{ width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:5px; }
+
+  .review-table{ width:100%; border-collapse:collapse; font-size:.84rem; }
+  .review-table th{ text-align:left; font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-muted); padding:6px 8px; border-bottom:1px solid var(--line); }
+  .review-table td{ padding:8px; border-bottom:1px solid var(--line); }
+
+  .escalation-list{ display:flex; flex-direction:column; gap:10px; }
+  .escalation-row{ display:flex; gap:12px; align-items:flex-start; border:1px solid var(--line); border-radius:11px; padding:12px 14px; background:var(--paper-raised); position:relative; overflow:hidden; }
+  .escalation-row::before{ content:""; position:absolute; left:0; top:0; bottom:0; width:4px; }
+  .escalation-row.distress::before{ background:var(--terracotta); }
+  .escalation-row.repeated::before{ background:var(--gold); }
+  .escalation-row.cheating::before{ background:var(--plum); }
+  .escalation-row .main{ flex:1; padding-left:6px; }
+  .escalation-row .top-line{ display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap; }
+  .escalation-row .student-name{ font-weight:700; font-size:.86rem; }
+  .escalation-row .time{ font-family:var(--font-data); font-size:.72rem; color:var(--ink-muted); margin-left:auto; }
+  .escalation-row .summary{ font-size:.82rem; color:var(--ink-muted); }
+  .escalation-row .actions{ display:flex; gap:6px; align-self:center; }
+
+  .memory-compare{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:700px){ .memory-compare{ grid-template-columns:1fr; } }
+  .compare-col .session-tag{ font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-muted); font-weight:700; margin-bottom:10px; }
+  .compare-col .q{ font-size:.82rem; font-weight:600; margin-bottom:8px; }
+  .compare-col .response{ font-size:.85rem; background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:12px 14px; }
+
+  .dev-note{ margin-top:26px; border:1px dashed var(--line); border-radius:12px; padding:12px 16px; font-size:.78rem; color:var(--ink-muted); font-family:var(--font-data); }
+</style>
+</head>
+<body>
+
+<!-- ======================= LOGIN ======================= -->
+<div id="loginScreen" class="login-wrap">
+  <div class="login-card card">
+    <div class="wordmark" style="margin-bottom:4px;">Mentora</div>
+    <p style="color:var(--ink-muted); font-size:.88rem; margin:0 0 16px;">Sign in to start a tutoring session or open your class dashboard.</p>
+    <input id="loginEmail" class="text-input" type="email" placeholder="you@school.edu" autocomplete="email">
+    <button class="btn btn-primary" style="width:100%; margin-top:10px;" onclick="doLogin()">Continue</button>
+    <p id="loginError" style="color:var(--terracotta); font-size:.8rem; margin:10px 0 0; display:none;"></p>
+    <p style="color:var(--ink-muted); font-size:.74rem; margin:14px 0 0;">
+      Personal-email domains (gmail.com, yahoo.com, …) open the Student Workspace.
+      School domains (.edu, .ac.in, .ac.uk, …) open the Teacher Dashboard.
+    </p>
+  </div>
+</div>
+
+<!-- ======================= DASHBOARD CHOICE (students only) ======================= -->
+<div id="chooserScreen" class="login-wrap" style="display:none;">
+  <div style="max-width:720px; width:100%;">
+    <div class="wordmark" style="margin-bottom:4px;">Mentora</div>
+    <p style="color:var(--ink-muted); font-size:.9rem; margin:0 0 18px;">How do you want to learn today?</p>
+    <div class="row">
+      <div class="card" style="flex:1; cursor:pointer;" onclick="chooseDashboard('simple')" tabindex="0" role="button"
+           onkeydown="if(event.key==='Enter')chooseDashboard('simple')">
+        <div class="card-title">📋 Simple dashboard</div>
+        <p style="font-size:.86rem; margin:0 0 10px;">Calm, focused tutoring — chat with the tutor, see your hint ladder, take placement and post-tests.</p>
+        <span class="chip chip-gold">Recommended for exam prep</span>
+      </div>
+      <div class="card" style="flex:1; cursor:pointer; border-color:var(--plum);" onclick="chooseDashboard('gamified')" tabindex="0" role="button"
+           onkeydown="if(event.key==='Enter')chooseDashboard('gamified')">
+        <div class="card-title" style="color:var(--plum);">🕹️ Gamified dashboard</div>
+        <p style="font-size:.86rem; margin:0 0 10px;">Pixel Tutor — avatars, XP, quests, and your learning curve as a game progress chart.</p>
+        <span class="chip chip-plum">Same tutor, more fun</span>
+      </div>
+    </div>
+    <p style="color:var(--ink-muted); font-size:.76rem; margin-top:14px;">Both dashboards track the same account — your attempts and progress carry across.</p>
+  </div>
+</div>
+
+<!-- ======================= APP ======================= -->
+<div class="app-shell" id="appShell" style="display:none;">
+  <nav class="rail">
+    <div>
+      <div class="wordmark">Mentora</div>
+      <div class="rail-tag">Adaptive AI Tutor</div>
+    </div>
+
+    <div>
+      <div class="rail-label" id="navLabel">Student flow</div>
+      <div class="screen-list" id="screenNav"></div>
+    </div>
+
+    <div class="rail-footer">
+      <div id="railUserInfo"></div>
+      <button class="btn btn-ghost" style="width:100%; margin-top:10px;" onclick="signOut()">Sign out</button>
+    </div>
+  </nav>
+
+  <div class="canvas" id="canvas">
+
+    <!-- ======================= S1 — START & PLACEMENT ======================= -->
+    <section class="screen" id="s1">
+      <div class="screen-header">
+        <div class="eyebrow">Student · Screen 1 of 3</div>
+        <h1 class="screen-title">Start a session</h1>
+        <p class="screen-sub">Placing the student before teaching starts, instead of defaulting every topic to a flat mastery score.</p>
+      </div>
+
+      <div class="stack">
+        <div id="dueReviewBanner"></div>
+
+        <div class="card">
+          <div class="card-title">Choose a topic</div>
+          <div class="topic-row" id="topicRow"></div>
+        </div>
+
+        <div id="placementArea"></div>
+      </div>
+    </section>
+
+    <!-- ======================= S2 — TUTORING SESSION ======================= -->
+    <section class="screen" id="s2">
+      <div class="screen-header">
+        <div class="eyebrow">Student · Screen 2 of 3</div>
+        <h1 class="screen-title">Tutoring session</h1>
+        <p class="screen-sub">Hint ladder: small clue → stronger hint → worked example — visible as a stepper, not just a backend field.</p>
+      </div>
+
+      <div class="session-topbar" id="sessionTopbar"></div>
+      <div id="ladderArea"></div>
+
+      <div class="card" style="padding:18px 20px 20px;">
+        <div class="chat-thread" id="chatThread"></div>
+        <div id="activeQuestionArea"></div>
+        <div class="chat-input-row">
+          <input id="chatInput" class="text-input" type="text" placeholder="Ask a question, or answer the problem above…">
+          <button class="btn btn-primary" onclick="sendChatMessage()">Send</button>
+        </div>
+      </div>
+
+      <div id="endSessionArea" style="margin-top:16px;"></div>
+    </section>
+
+    <!-- ======================= S3 — SESSION END ======================= -->
+    <section class="screen" id="s3">
+      <div class="screen-header">
+        <div class="eyebrow">Student · Screen 3 of 3</div>
+        <h1 class="screen-title">Session end</h1>
+        <p class="screen-sub">Pre-test → post-test learning gain — the required demo evidence that a number went up.</p>
+      </div>
+
+      <div id="revealArea"></div>
+
+      <div class="cta-row">
+        <button class="btn-ghost btn" onclick="setScreen('s1')">Back to topics</button>
+      </div>
+    </section>
+
+    <!-- ======================= T1 — STUDENT LOOKUP ======================= -->
+    <section class="screen" id="t1">
+      <div class="screen-header">
+        <div class="eyebrow">Teacher · Screen 1 of 5</div>
+        <h1 class="screen-title">Look up a student</h1>
+        <p class="screen-sub">Mastery and prerequisites are read live from Neo4j by student email, so this works for any student who has ever signed in.</p>
+      </div>
+
+      <div class="roster-toolbar">
+        <input id="lookupEmail" class="text-input" type="email" placeholder="student@gmail.com">
+        <button class="btn btn-primary" onclick="lookupStudent()">Look up</button>
+      </div>
+
+      <div id="lookupResult"></div>
+
+      <div id="scheduleArea" style="margin-top:20px;"></div>
+    </section>
+
+    <!-- ======================= T2 — EVAL METRICS ======================= -->
+    <section class="screen" id="t2">
+      <div class="screen-header">
+        <div class="eyebrow">Teacher · Screen 2 of 5</div>
+        <h1 class="screen-title">Eval metrics</h1>
+        <p class="screen-sub">The panel's six named judging metrics, computed live from logged turns — pick a student on the Lookup screen first.</p>
+      </div>
+      <div id="evalMetricsArea"></div>
+    </section>
+
+    <!-- ======================= T3 — MISCONCEPTION GRAPH ======================= -->
+    <section class="screen" id="t3">
+      <div class="screen-header">
+        <div class="eyebrow">Teacher · Screen 3 of 5</div>
+        <h1 class="screen-title">Misconception graph explorer</h1>
+        <p class="screen-sub">Prerequisite structure from the Neo4j REQUIRES graph, with the selected student's mastery overlaid.</p>
+      </div>
+
+      <div class="roster-toolbar">
+        <input id="graphConcept" class="text-input" type="text" placeholder="Concept name, e.g. Fractions" style="max-width:320px;">
+        <button class="btn btn-primary" onclick="loadMisconceptionGraph()">Load graph</button>
+      </div>
+
+      <div id="graphArea"></div>
+    </section>
+
+    <!-- ======================= T4 — ESCALATION FEED ======================= -->
+    <section class="screen" id="t4">
+      <div class="screen-header">
+        <div class="eyebrow">Teacher · Screen 4 of 5</div>
+        <h1 class="screen-title">Escalation feed</h1>
+        <p class="screen-sub">Color-coded by trigger: distress, repeated failure, or cheating-risk — all three live.</p>
+      </div>
+      <div id="escalationArea"></div>
+    </section>
+
+    <!-- ======================= T5 — MEMORY IMPACT (illustrative) ======================= -->
+    <section class="screen" id="t5">
+      <div class="screen-header">
+        <div class="eyebrow">Teacher · Screen 5 of 5</div>
+        <h1 class="screen-title">Memory made this better <span class="tag tag-illustrative">Illustrative</span></h1>
+        <p class="screen-sub">Not live-wired: proving this for real means diffing two conversation transcripts for the same concept across sessions and would need its own comparison endpoint. Shown here as a worked example of what that screen would prove.</p>
+      </div>
+
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-title">Same question, two sessions apart</div>
+      </div>
+
+      <div class="memory-compare">
+        <div class="card compare-col">
+          <div class="session-tag" style="color:var(--ink-muted);">Session 1 · no history yet</div>
+          <div class="q">"What is 1/2 + 1/3?"</div>
+          <div class="response">"Remember: to add fractions, you first need a common denominator. Try rewriting both fractions with the same bottom number before adding."</div>
+        </div>
+        <div class="card compare-col" style="border-color:var(--sage);">
+          <div class="session-tag" style="color:var(--sage);">Session 3 · after 2 prior misses on this exact gap</div>
+          <div class="q">"What is 1/2 + 1/3?"</div>
+          <div class="response">"This is the same common-denominator step that tripped you up last time — you added the denominators directly. This time, try listing multiples of 2 and 3 first: which one shows up in both lists?"</div>
+        </div>
+      </div>
+
+      <div class="dev-note">Would read: backend/memory/conversation_store.get_recent_messages(student_id), filtered to turns sharing a diagnostic misconception, across two sessions.</div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+  // ===================================================================
+  // Real API — replaces the reference build's mockApi() router. Every
+  // call site below matches the reference's own function names/signatures;
+  // only this function's insides differ (fetch instead of a local mock).
+  // ===================================================================
+  function api(path, opts){
+    opts = opts || {};
+    var method = opts.method || 'GET';
+    var body = opts.body;
+    var fetchOpts = { method: method, headers: {} };
+    if (body !== undefined){
+      fetchOpts.headers['Content-Type'] = 'application/json';
+      fetchOpts.body = JSON.stringify(body);
+    }
+    return fetch(path, fetchOpts).then(function(res){
+      return res.json().then(function(data){
+        if (!res.ok) throw new Error(data.detail || ('Request failed (' + res.status + ')'));
+        return data;
+      });
+    });
+  }
+  function qs(params){
+    return Object.keys(params).map(function(k){ return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]); }).join('&');
+  }
+  function esc(s){
+    if (s === null || s === undefined) return '';
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function mdToHtml(text){
+    var out = esc(text);
+    out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    out = out.replace(/\n/g, '<br>');
+    return out;
+  }
+
+  // ===================================================================
+  // State
+  // ===================================================================
+  var state = {
+    studentId: null,
+    role: null,
+    currentConcept: null,
+    lookedUpStudentId: null,
+    quiz: null,       // { variant, questions, index, answers }
+    topics: ['Fractions', 'Probability', 'Algebra', 'Geometry', 'Decimals and Percentages'],
+  };
+
+  var STUDENT_SCREENS = [
+    ['s1', '1', 'Start & placement'],
+    ['s2', '2', 'Tutoring session'],
+    ['s3', '3', 'Session end'],
+  ];
+  var TEACHER_SCREENS = [
+    ['t1', '1', 'Student lookup'],
+    ['t2', '2', 'Eval metrics'],
+    ['t3', '3', 'Misconception graph'],
+    ['t4', '4', 'Escalation feed'],
+    ['t5', '5', 'Memory impact'],
+  ];
+
+  // ===================================================================
+  // Auth
+  // ===================================================================
+  function doLogin(){
+    var email = document.getElementById('loginEmail').value.trim();
+    var errEl = document.getElementById('loginError');
+    errEl.style.display = 'none';
+    api('/api/login', {method: 'POST', body: {email: email}}).then(function(res){
+      state.studentId = res.student_id;
+      state.role = res.role;
+      localStorage.setItem('mentora_student_id', res.student_id);
+      document.getElementById('loginScreen').style.display = 'none';
+      if (state.role === 'teacher'){
+        enterSimpleDashboard();
+      } else {
+        document.getElementById('chooserScreen').style.display = 'grid';
+      }
+    }).catch(function(err){
+      errEl.textContent = err.message || 'Enter a valid email address.';
+      errEl.style.display = 'block';
+    });
+  }
+  function chooseDashboard(kind){
+    if (kind === 'gamified'){
+      window.location.href = '/gamified/?student_id=' + encodeURIComponent(state.studentId);
+      return;
+    }
+    document.getElementById('chooserScreen').style.display = 'none';
+    enterSimpleDashboard();
+  }
+  function enterSimpleDashboard(){
+    document.getElementById('appShell').style.display = 'flex';
+    document.getElementById('railUserInfo').innerHTML =
+      '<div style="font-size:.8rem;">Signed in as <strong>' + esc(state.studentId) + '</strong></div>' +
+      '<div style="font-size:.76rem;">Role: ' + esc(state.role.charAt(0).toUpperCase() + state.role.slice(1)) + '</div>';
+    renderNav();
+    if (state.role === 'teacher'){
+      setScreen('t1');
+    } else {
+      state.currentConcept = state.topics[0];
+      setScreen('s1');
+      loadStudentState();
+    }
+  }
+  function signOut(){
+    state.studentId = null; state.role = null; state.currentConcept = null;
+    localStorage.removeItem('mentora_student_id');
+    document.getElementById('appShell').style.display = 'none';
+    document.getElementById('chooserScreen').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'grid';
+    document.getElementById('loginEmail').value = '';
+  }
+
+  // ===================================================================
+  // Navigation
+  // ===================================================================
+  function renderNav(){
+    var screens = state.role === 'teacher' ? TEACHER_SCREENS : STUDENT_SCREENS;
+    document.getElementById('navLabel').textContent = state.role === 'teacher' ? 'Teacher flow' : 'Student flow';
+    var nav = document.getElementById('screenNav');
+    nav.innerHTML = screens.map(function(s){
+      return '<button class="screen-btn" data-screen="' + s[0] + '" onclick="setScreen(\'' + s[0] + '\')">' +
+        '<span class="num">' + s[1] + '</span> ' + esc(s[2]) + '</button>';
+    }).join('');
+  }
+  function setScreen(id){
+    document.querySelectorAll('.screen').forEach(function(s){ s.classList.toggle('active', s.id === id); });
+    document.querySelectorAll('.screen-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.screen === id); });
+    if (id === 's1') renderTopics();
+    if (id === 's2') renderChat();
+    if (id === 't2') loadEvalMetrics();
+    if (id === 't4') loadEscalations();
+  }
+
+  // ===================================================================
+  // Student: S1 — topics + placement
+  // ===================================================================
+  var lastState = null;
+
+  function loadStudentState(){
+    return api('/api/state?' + qs({student_id: state.studentId, concept: state.currentConcept})).then(function(res){
+      lastState = res;
+      renderDueBanner(res.due_for_review);
+      renderTopics();
+      renderChatFromMessages(res.messages);
+      renderLadder(res.hint_ladder);
+      renderActiveQuestion(res.active_question);
+      renderEndSessionButton();
+    });
+  }
+
+  function renderDueBanner(due){
+    var el = document.getElementById('dueReviewBanner');
+    if (!due || !due.length){ el.innerHTML = ''; return; }
+    el.innerHTML = '<div class="banner-review">📅 <strong>' + esc(due.join(', ')) + '</strong> ' +
+      (due.length === 1 ? 'is' : 'are') + ' due for review.</div>';
+  }
+
+  function renderTopics(){
+    if (!lastState) return;
+    var mastery = (lastState.profile && lastState.profile.concept_mastery) || {};
+    var row = document.getElementById('topicRow');
+    row.innerHTML = state.topics.map(function(topic){
+      var entry = mastery[topic];
+      var meta = entry ? Math.round(entry.mastery * 100) + '% mastery' : 'New';
+      var sel = topic === state.currentConcept ? ' selected' : '';
+      return '<div class="topic-chip' + sel + '" onclick="selectTopic(\'' + esc(topic).replace(/'/g,"\\'") + '\')">' +
+        '<span class="t-name">' + esc(topic) + '</span><span class="t-meta">' + esc(meta) + '</span></div>';
+    }).join('');
+    renderPlacementArea();
+  }
+
+  function selectTopic(topic){
+    state.currentConcept = topic;
+    state.quiz = null;
+    loadStudentState();
+  }
+
+  function renderPlacementArea(){
+    var el = document.getElementById('placementArea');
+    var pre = lastState && lastState.pre_test_scores ? lastState.pre_test_scores[state.currentConcept] : undefined;
+
+    if (state.quiz && state.quiz.variant === 'pre'){
+      el.innerHTML = quizCardHtml();
+      return;
+    }
+    if (pre === undefined){
+      el.innerHTML =
+        '<div class="card">' +
+        '<div class="card-title">Quick placement check</div>' +
+        '<p style="font-size:.86rem; color:var(--ink-muted); margin:0 0 12px;">A few free-response questions, about a minute. Helps the tutor start at the right level instead of a flat default.</p>' +
+        '<div class="row" style="gap:10px;">' +
+        '<button class="btn btn-primary" onclick="startQuiz(\'pre\')">Start placement check</button>' +
+        '<button class="btn btn-ghost" onclick="skipQuiz(\'pre\')">Skip</button>' +
+        '</div></div>';
+    } else {
+      el.innerHTML = '<div class="cta-row"><button class="btn btn-primary" onclick="setScreen(\'s2\')">Start tutoring session →</button></div>';
+    }
+  }
+
+  function quizCardHtml(){
+    var q = state.quiz.questions[state.quiz.index];
+    var dots = state.quiz.questions.map(function(_, i){
+      var cls = i < state.quiz.index ? 'done' : (i === state.quiz.index ? 'current' : '');
+      return '<span class="' + cls + '"></span>';
+    }).join('');
+    var isLast = state.quiz.index === state.quiz.questions.length - 1;
+    var answered = (state.quiz.answers[state.quiz.index] || '').trim().length > 0;
+    return '<div class="card">' +
+      '<div class="card-title">' + (state.quiz.variant === 'pre' ? 'Placement check' : 'Post-test') + ' · question ' + (state.quiz.index + 1) + ' of ' + state.quiz.questions.length + '</div>' +
+      '<div class="progress-dots">' + dots + '</div>' +
+      '<div class="quiz-question">' + esc(q.question_text) + '</div>' +
+      '<textarea class="text-input" id="quizAnswerInput" rows="3" placeholder="Type your answer…" oninput="onQuizAnswerInput(this.value)">' + esc(state.quiz.answers[state.quiz.index] || '') + '</textarea>' +
+      '<div class="cta-row"><button class="btn btn-primary" id="quizNextBtn" ' + (answered ? '' : 'disabled') + ' onclick="nextQuizStep()">' + (isLast ? 'Finish' : 'Next →') + '</button></div>' +
+      '</div>';
+  }
+
+  function onQuizAnswerInput(value){
+    state.quiz.answers[state.quiz.index] = value;
+    var btn = document.getElementById('quizNextBtn');
+    if (btn) btn.disabled = value.trim().length === 0;
+  }
+
+  function startQuiz(variant){
+    api('/api/quiz/start', {method: 'POST', body: {student_id: state.studentId, concept: state.currentConcept, variant: variant}})
+      .then(function(res){
+        if (!res.questions.length){
+          alert("Couldn't generate quiz questions right now (is Ollama running?).");
+          return;
+        }
+        state.quiz = {variant: variant, questions: res.questions, index: 0, answers: res.questions.map(function(){ return ''; })};
+        if (variant === 'pre') renderPlacementArea(); else renderRevealOrPost();
+      })
+      .catch(function(err){ alert(err.message); });
+  }
+  function skipQuiz(variant){
+    api('/api/quiz/skip', {method: 'POST', body: {student_id: state.studentId, concept: state.currentConcept, variant: variant}})
+      .then(function(){
+        if (!lastState.pre_test_scores) lastState.pre_test_scores = {};
+        lastState.pre_test_scores[state.currentConcept] = null;
+        renderPlacementArea();
+      });
+  }
+  function nextQuizStep(){
+    var isLast = state.quiz.index === state.quiz.questions.length - 1;
+    if (!isLast){
+      state.quiz.index += 1;
+      if (state.quiz.variant === 'pre') renderPlacementArea(); else renderRevealOrPost();
+      return;
+    }
+    var variant = state.quiz.variant;
+    var answers = state.quiz.questions.map(function(q, i){
+      return {question_id: q.question_id, question_text: q.question_text, answer_text: state.quiz.answers[i]};
+    });
+    api('/api/quiz/submit', {method: 'POST', body: {
+      student_id: state.studentId, concept: state.currentConcept, variant: variant, answers: answers
+    }}).then(function(res){
+      if (!lastState.pre_test_scores) lastState.pre_test_scores = {};
+      if (!lastState.post_test_scores) lastState.post_test_scores = {};
+      if (variant === 'pre') lastState.pre_test_scores[state.currentConcept] = [res.correct, res.total];
+      else lastState.post_test_scores[state.currentConcept] = [res.correct, res.total];
+      state.quiz = null;
+      if (variant === 'pre'){ renderPlacementArea(); }
+      else { setScreen('s3'); renderRevealArea(); }
+    });
+  }
+
+  // ===================================================================
+  // Student: S2 — chat + hint ladder
+  // ===================================================================
+  function renderChat(){
+    if (lastState) renderChatFromMessages(lastState.messages);
+    renderSessionTopbar();
+    renderLadder(lastState ? lastState.hint_ladder : {kind: 'none'});
+    renderActiveQuestion(lastState ? lastState.active_question : null);
+    renderEndSessionButton();
+  }
+  function renderSessionTopbar(){
+    var mastery = (lastState.profile && lastState.profile.concept_mastery) || {};
+    var entry = mastery[state.currentConcept];
+    var chips = '<span class="chip chip-gold">' + esc(state.currentConcept || '—') + '</span>';
+    if (entry) chips += '<span class="chip chip-outline">Mastery ' + Math.round(entry.mastery * 100) + '%</span>';
+    if (lastState.active_question) chips += '<span class="chip chip-sage">Problem in progress</span>';
+    document.getElementById('sessionTopbar').innerHTML = chips;
+  }
+  function renderChatFromMessages(messages){
+    var thread = document.getElementById('chatThread');
+    thread.innerHTML = (messages || []).map(function(m){
+      var cls = m.role === 'user' ? 'msg-user' : 'msg-assistant';
+      return '<div class="msg ' + cls + '">' + mdToHtml(m.content) + '</div>';
+    }).join('');
+    thread.scrollTop = thread.scrollHeight;
+  }
+  function renderActiveQuestion(question){
+    var el = document.getElementById('activeQuestionArea');
+    if (!question){ el.innerHTML = ''; return; }
+    el.innerHTML = '<div class="active-question-card"><div class="aq-label">Current problem</div>' + esc(question) + '</div>';
+  }
+  function renderLadder(payload){
+    var el = document.getElementById('ladderArea');
+    if (!payload || payload.kind === 'none'){ el.innerHTML = ''; return; }
+    if (payload.kind === 'note'){ el.innerHTML = '<div class="ladder-note">' + esc(payload.text) + '</div>'; return; }
+    var html = '<div class="ladder-stepper">';
+    payload.labels.forEach(function(label, i){
+      var cls = i < payload.current_index ? 'done' : (i === payload.current_index ? 'current' : '');
+      var marker = i < payload.current_index ? '&#10003;' : (i + 1);
+      html += '<div class="ladder-step ' + cls + '"><div class="ladder-line"></div><div class="node">' + marker + '</div><div class="label">' + esc(label) + '</div></div>';
+    });
+    html += '</div>';
+    el.innerHTML = html;
+  }
+  function sendChatMessage(){
+    var input = document.getElementById('chatInput');
+    var message = input.value.trim();
+    if (!message) return;
+    input.value = '';
+    input.disabled = true;
+    lastState.messages.push({role: 'user', content: message});
+    renderChatFromMessages(lastState.messages);
+
+    api('/api/chat', {method: 'POST', body: {student_id: state.studentId, concept: state.currentConcept, message: message}})
+      .then(function(res){
+        lastState.messages.push({role: 'assistant', content: res.reply});
+        lastState.active_question = res.active_question;
+        lastState.profile = res.profile;
+        lastState.hint_ladder = res.hint_ladder;
+        renderChatFromMessages(lastState.messages);
+        renderSessionTopbar();
+        renderLadder(res.hint_ladder);
+        renderActiveQuestion(res.active_question);
+        renderEndSessionButton();
+        if (res.escalated){
+          lastState.messages.push({role: 'assistant', content: '🚨 Your teacher has been notified and will follow up with you on this together.'});
+          renderChatFromMessages(lastState.messages);
+        }
+      })
+      .catch(function(err){
+        lastState.messages.push({role: 'assistant', content: '⚠️ ' + err.message});
+        renderChatFromMessages(lastState.messages);
+      })
+      .finally(function(){ input.disabled = false; input.focus(); });
+  }
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Enter' && document.activeElement && document.activeElement.id === 'chatInput') sendChatMessage();
+  });
+
+  function renderEndSessionButton(){
+    var el = document.getElementById('endSessionArea');
+    var pre = lastState && lastState.pre_test_scores ? lastState.pre_test_scores[state.currentConcept] : undefined;
+    var post = lastState && lastState.post_test_scores ? lastState.post_test_scores[state.currentConcept] : undefined;
+    if (pre !== undefined && pre !== null && !post){
+      el.innerHTML = '<button class="btn btn-ghost" onclick="startQuiz(\'post\')">🏁 End session — take the post-test</button>';
+    } else {
+      el.innerHTML = '';
+    }
+  }
+
+  // ===================================================================
+  // Student: S3 — reveal
+  // ===================================================================
+  function renderRevealOrPost(){
+    document.getElementById('revealArea').innerHTML = quizCardHtml();
+  }
+  function renderRevealArea(){
+    var el = document.getElementById('revealArea');
+    var pre = lastState.pre_test_scores ? lastState.pre_test_scores[state.currentConcept] : null;
+    var post = lastState.post_test_scores ? lastState.post_test_scores[state.currentConcept] : null;
+    if (!post){ el.innerHTML = '<p class="empty-state">No post-test on record yet for this concept.</p>'; return; }
+
+    var mastery = (lastState.profile && lastState.profile.concept_mastery) || {};
+    var entry = mastery[state.currentConcept] || {};
+
+    if (!pre){
+      el.innerHTML = '<div class="card"><div class="card-title">' + esc(state.currentConcept) + ' — post-test</div>' +
+        '<p style="font-size:1.1rem; font-weight:700;">' + post[0] + '/' + post[1] + ' correct</p>' +
+        '<p style="color:var(--ink-muted); font-size:.85rem;">No pre-test on record, so there\'s no gain to show — just the post-test score.</p></div>';
+      return;
+    }
+
+    var prePct = Math.round(pre[0] / pre[1] * 100);
+    var postPct = Math.round(post[0] / post[1] * 100);
+    el.innerHTML =
+      '<div class="card reveal-card">' +
+      '<div class="card-title" style="text-align:left;">' + esc(state.currentConcept) + ' — learning gain</div>' +
+      '<div class="reveal-numbers"><span class="reveal-num before">' + prePct + '%</span>' +
+      '<span class="reveal-arrow">→</span><span class="reveal-num after">' + postPct + '%</span></div>' +
+      '<div class="bar-track"><div class="bar-fill" style="width:' + postPct + '%"></div></div>' +
+      '<p style="color:var(--ink-muted); font-size:.85rem;">' + pre[0] + '/' + pre[1] + ' correct before → ' + post[0] + '/' + post[1] + ' correct after.</p>' +
+      '</div>';
+  }
+
+  // ===================================================================
+  // Teacher: T1 — student lookup
+  // ===================================================================
+  function lookupStudent(){
+    var email = document.getElementById('lookupEmail').value.trim();
+    if (!email) return;
+    api('/api/profile?' + qs({student_id: email})).then(function(res){
+      state.lookedUpStudentId = email;
+      renderLookupResult(res);
+      loadScheduleTable();
+    }).catch(function(err){
+      document.getElementById('lookupResult').innerHTML = '<p class="empty-state">' + esc(err.message) + '</p>';
+    });
+  }
+  function renderLookupResult(res){
+    var el = document.getElementById('lookupResult');
+    var mastery = (res.profile && res.profile.concept_mastery) || {};
+    var concepts = Object.keys(mastery);
+    var dueSet = {};
+    (res.due_for_review || []).forEach(function(c){ dueSet[c] = true; });
+
+    var due = res.due_for_review || [];
+    var dueHtml = due.length ? '<div class="banner-review" style="margin-bottom:14px;">📅 <strong>' + esc(due.join(', ')) + '</strong> due for review.</div>' : '';
+
+    if (!concepts.length){
+      el.innerHTML = dueHtml + '<p class="empty-state">No concept history yet for ' + esc(state.lookedUpStudentId) + '.</p>';
+      return;
+    }
+    var cards = concepts.map(function(name){
+      var data = mastery[name];
+      var pct = Math.round((data.mastery || 0) * 100);
+      var color = pct >= 70 ? 'var(--sage)' : (pct >= 40 ? 'var(--gold)' : 'var(--terracotta)');
+      var dueChip = dueSet[name] ? '<span class="chip chip-sage" style="margin-left:auto;">Due</span>' : '';
+      return '<div class="card concept-card"><div class="head">' +
+        '<div class="mastery-ring" style="--pct:' + pct + '; --ring-color:' + color + ';"><span class="ring-inner">' + pct + '%</span></div>' +
+        '<div><div class="name">' + esc(name) + '</div><div class="foot">' + (data.consecutive_misses || 0) + ' consecutive misses</div></div>' + dueChip +
+        '</div></div>';
+    }).join('');
+    el.innerHTML = dueHtml + '<div class="roster-grid">' + cards + '</div>' +
+      '<div class="row wrap" style="margin-top:14px;">' + (res.profile.weak_prerequisites || []).map(function(w){
+        return '<span class="chip chip-terracotta" style="margin:3px 6px 3px 0;">' + esc(w) + '</span>';
+      }).join('') + '</div>';
+  }
+  function loadScheduleTable(){
+    var el = document.getElementById('scheduleArea');
+    if (!state.lookedUpStudentId){ el.innerHTML = ''; return; }
+    api('/api/schedule?' + qs({student_id: state.lookedUpStudentId})).then(function(res){
+      var rows = res.schedule || [];
+      if (!rows.length){ el.innerHTML = ''; return; }
+      el.innerHTML = '<div class="card"><div class="card-title">📅 Spaced Repetition Schedule</div>' +
+        '<table class="review-table"><thead><tr><th>Concept</th><th>Mastery at schedule</th><th>Next review</th></tr></thead><tbody>' +
+        rows.map(function(r){
+          return '<tr><td>' + esc(r.concept) + '</td><td>' + Math.round((r.mastery_at_schedule || 0) * 100) + '%</td>' +
+            '<td>' + esc((r.next_review_at || '').slice(0, 10)) + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+    });
+  }
+
+  // ===================================================================
+  // Teacher: T2 — eval metrics
+  // ===================================================================
+  function loadEvalMetrics(){
+    var el = document.getElementById('evalMetricsArea');
+    if (!state.lookedUpStudentId){
+      el.innerHTML = '<p class="empty-state">Look up a student on the Student Lookup screen first.</p>';
+      return;
+    }
+    api('/api/eval-metrics?' + qs({student_id: state.lookedUpStudentId})).then(function(res){
+      el.innerHTML = '<div class="eval-grid">' + res.metrics.map(function(m){
+        return '<div class="card eval-card"><div class="metric-head"><span class="metric-name">' + esc(m.label) + '</span></div>' +
+          '<div class="eval-score status-' + esc(m.status) + '">' + esc(m.display) + '</div>' +
+          '<div class="eval-def">' + esc(m.description) + '</div></div>';
+      }).join('') + '</div>';
+    });
+  }
+
+  // ===================================================================
+  // Teacher: T3 — misconception graph
+  // ===================================================================
+  function loadMisconceptionGraph(){
+    var concept = document.getElementById('graphConcept').value.trim() || state.currentConcept || 'Fractions';
+    var params = {concept: concept};
+    if (state.lookedUpStudentId) params.student_id = state.lookedUpStudentId;
+    api('/api/misconception-graph?' + qs(params)).then(function(res){
+      renderGraph(res);
+    });
+  }
+  function colorForMastery(pct){
+    if (pct >= 70) return 'var(--sage)';
+    if (pct >= 40) return 'var(--gold)';
+    return 'var(--terracotta)';
+  }
+  function softColorForMastery(pct){
+    if (pct >= 70) return 'var(--sage-soft)';
+    if (pct >= 40) return 'var(--gold-soft)';
+    return 'var(--terracotta-soft)';
+  }
+  function renderGraph(data){
+    var wrap = document.getElementById('graphArea');
+    if (!data.neo4j_available){
+      wrap.innerHTML = '<p class="empty-state">Neo4j isn\'t connected — the prerequisite graph is empty until it is. ' +
+        '(Everything else on this page still works; mastery/escalations don\'t depend on Neo4j.)</p>';
+      return;
+    }
+    if (!data.nodes || data.nodes.length <= 1){
+      wrap.innerHTML = '<p class="empty-state">No prerequisites on record for this concept yet.</p>';
+      return;
+    }
+    var focus = data.nodes[0];
+    var prereqs = data.nodes.slice(1);
+    var cx = 320, focusY = 60, prereqY = 190;
+    var spacing = 640 / (prereqs.length + 1);
+    var svg = '<svg viewBox="0 0 640 260" width="100%" height="260" role="img" aria-label="Prerequisite graph">';
+    prereqs.forEach(function(_, i){
+      var px = spacing * (i + 1);
+      svg += '<line x1="' + cx + '" y1="' + (focusY+26) + '" x2="' + px + '" y2="' + (prereqY-26) + '" stroke="var(--ink-muted)" stroke-width="1.5"/>';
+    });
+    var pct0 = Math.round((focus.mastery||0)*100);
+    svg += '<g class="gnode" tabindex="0" role="button" onclick="showGraphNode(' + JSON.stringify(focus).replace(/"/g,'&quot;') + ')">' +
+      '<circle cx="' + cx + '" cy="' + focusY + '" r="26" fill="' + softColorForMastery(pct0) + '" stroke="' + colorForMastery(pct0) + '"/>' +
+      '<text x="' + cx + '" y="' + (focusY+4) + '" text-anchor="middle">' + esc(focus.name.slice(0,12)) + '</text></g>';
+    prereqs.forEach(function(node, i){
+      var px = spacing * (i + 1);
+      var pct = Math.round((node.mastery||0)*100);
+      svg += '<g class="gnode" tabindex="0" role="button" onclick="showGraphNode(' + JSON.stringify(node).replace(/"/g,'&quot;') + ')">' +
+        '<circle cx="' + px + '" cy="' + prereqY + '" r="24" fill="' + softColorForMastery(pct) + '" stroke="' + colorForMastery(pct) + '"/>' +
+        '<text x="' + px + '" y="' + (prereqY+4) + '" text-anchor="middle">' + esc(node.name.slice(0,12)) + '</text></g>';
+    });
+    svg += '</svg>';
+
+    wrap.innerHTML =
+      '<div class="graph-layout">' +
+      '<div class="graph-canvas-wrap">' + svg + '</div>' +
+      '<div class="node-detail-panel card" id="nodePanel"><p class="empty-state">Click a node for details.</p></div>' +
+      '</div>' +
+      '<div class="graph-legend">' +
+      '<span><i class="dot" style="background:var(--terracotta)"></i>Weak (&lt;40%)</span>' +
+      '<span><i class="dot" style="background:var(--gold)"></i>Developing (40–70%)</span>' +
+      '<span><i class="dot" style="background:var(--sage)"></i>Mastered (70%+)</span>' +
+      '</div>';
+  }
+  function showGraphNode(node){
+    var pct = Math.round((node.mastery||0)*100);
+    var chipClass = pct >= 70 ? 'chip-sage' : (pct >= 40 ? 'chip-gold' : 'chip-terracotta');
+    document.getElementById('nodePanel').innerHTML =
+      '<div class="card-title">' + esc(node.name) + '</div>' +
+      '<div class="row wrap" style="gap:8px; margin-bottom:12px;"><span class="chip ' + chipClass + '">' + pct + '% mastery</span></div>' +
+      (node.is_focus ? '<p style="font-size:.82rem; color:var(--ink-muted);">Currently selected concept.</p>' : '<p style="font-size:.82rem; color:var(--ink-muted);">Prerequisite for the selected concept.</p>');
+  }
+
+  // ===================================================================
+  // Teacher: T4 — escalation feed
+  // ===================================================================
+  function loadEscalations(){
+    var el = document.getElementById('escalationArea');
+    if (!state.lookedUpStudentId){
+      el.innerHTML = '<p class="empty-state">Look up a student on the Student Lookup screen first.</p>';
+      return;
+    }
+    api('/api/escalations?' + qs({student_id: state.lookedUpStudentId})).then(function(res){
+      renderEscalations(res.escalations);
+    });
+  }
+  function renderEscalations(log){
+    var el = document.getElementById('escalationArea');
+    if (!log || !log.length){
+      el.innerHTML = '<p class="empty-state">No escalations yet for this student.</p>';
+      return;
+    }
+    var cls = {'Distress': 'distress', 'Repeated failure': 'repeated', 'Cheating risk': 'cheating'};
+    var chipCls = {'Distress': 'chip-terracotta', 'Repeated failure': 'chip-gold', 'Cheating risk': 'chip-plum'};
+    el.innerHTML = '<div class="escalation-list">' + log.slice().reverse().map(function(e){
+      var warrantedBadge = e.warranted === true ? '<span class="chip chip-sage">Confirmed warranted</span>' :
+        (e.warranted === false ? '<span class="chip chip-outline">Not warranted</span>' : '');
+      return '<div class="escalation-row ' + (cls[e.trigger_type] || 'repeated') + '">' +
+        '<div class="main"><div class="top-line"><span class="student-name">' + esc(e.topic) + '</span>' +
+        '<span class="chip ' + (chipCls[e.trigger_type] || 'chip-gold') + '">' + esc(e.trigger_type) + '</span>' +
+        warrantedBadge + '<span class="time">' + esc(e.time) + '</span></div>' +
+        '<div class="summary">' + esc(e.trigger) + ' · ' + e.misses + ' consecutive misses</div></div>' +
+        '<div class="actions">' +
+        '<button class="btn btn-ghost" onclick="reviewEscalation(' + e.id + ', true)">Warranted</button>' +
+        '<button class="btn btn-ghost" onclick="reviewEscalation(' + e.id + ', false)">Not warranted</button>' +
+        '</div></div>';
+    }).join('') + '</div>';
+  }
+  function reviewEscalation(id, warranted){
+    api('/api/escalations/review', {method: 'POST', body: {student_id: state.lookedUpStudentId, id: id, warranted: warranted}})
+      .then(function(){ loadEscalations(); });
+  }
+
+  // ===================================================================
+  // Boot — resume a session if we still have an identity (e.g. came back
+  // from the gamified dashboard via "Sign out", or a page refresh).
+  // ===================================================================
+  (function boot(){
+    var params = new URLSearchParams(window.location.search);
+    var resumeId = params.get('student_id') || localStorage.getItem('mentora_student_id');
+    if (!resumeId) return;
+    api('/api/login', {method: 'POST', body: {email: resumeId}}).then(function(res){
+      state.studentId = res.student_id;
+      state.role = res.role;
+      localStorage.setItem('mentora_student_id', res.student_id);
+      document.getElementById('loginScreen').style.display = 'none';
+      enterSimpleDashboard();
+    }).catch(function(){ /* stale/invalid id in storage -- fall back to login screen */ });
+  })();
+</script>
+
+</body>
+</html>
